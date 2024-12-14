@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, JSON, DateTime
 from sqlalchemy.sql import insert
-import datetime
+from datetime import datetime, timezone
 
 # Define the router
 router = APIRouter()
@@ -37,7 +37,7 @@ class Event(BaseModel):
 @router.post("/ingest")
 async def ingest_event(event: Event):
     # Prepare the event data
-    event_time = datetime.datetime.utcnow()
+    event_time = datetime.now(timezone.utc)
     query = insert(events).values(
         event_type=event.event_type,
         event_time=event_time,
