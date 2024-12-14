@@ -13,13 +13,32 @@ def mock_data():
     ]
 
 def test_transform_events(mock_data, monkeypatch):
-    # Mock database fetch
-    def mock_fetch_events(*args, **kwargs):
-        return mock_data
+    # Mock the database connection and execution
+    class MockConnection:
+        def execute(self, *args, **kwargs):
+            class MockResult:
+                def __iter__(self):
+                    for row in mock_data:
+                        yield row
+            return MockResult()
 
-    # Patch the database query logic in the service
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    # Patch the database engine's connect method
     from app.transform.transform_service import engine
-    monkeypatch.setattr(engine, "connect", mock_fetch_events)
+    monkeypatch.setattr(engine, "connect", lambda *args: MockConnection())
+
+    # Mock Redis to avoid real calls
+    class MockRedis:
+        async def hset(self, *args, **kwargs):
+            return True
+
+    from app.transform.transform_service import redis
+    monkeypatch.setattr(redis, "from_url", lambda *args, **kwargs: MockRedis())
 
     # Call the endpoint
     response = client.get("/transform/transform")
@@ -27,4 +46,5 @@ def test_transform_events(mock_data, monkeypatch):
     # Validate the response
     assert response.status_code == 200
     response_data = response.json()
-    assert response_data["message"] == "Transformation endpoint is working!"  # Update to match the placeholder response
+    assert response_data["message"] == "Events transformed and stored in Redis"  # Validate the updated message
+    assert response_data["transformed_count"] == len(mock_data)  # Validate count matches mock data
