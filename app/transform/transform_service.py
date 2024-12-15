@@ -12,10 +12,6 @@ REDIS_PORT = 6379
 engine = create_engine(DATABASE_URL)
 @router.get("/transform")
 async def transform_events():
-    return {"message": "Transformation endpoint is working!"}
-
-@router.get("/transform")
-async def transform_events():
     # Connect to Redis asynchronously
     redis_client = redis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}")
 
@@ -37,4 +33,5 @@ async def transform_events():
         await redis_client.hset(redis_key, mapping=transformed)
         transformed_events.append(transformed)
 
+    # Return the count of transformed events
     return {"message": "Events transformed and stored in Redis", "transformed_count": len(transformed_events)}

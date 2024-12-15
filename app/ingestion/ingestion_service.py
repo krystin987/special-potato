@@ -1,14 +1,17 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, JSON, DateTime
-from sqlalchemy.sql import insert
-from datetime import datetime, timezone
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, JSON, DateTime, text
+import json
+from pydantic import BaseModel, Field
+import logging
 
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
+
+logger = logging.getLogger(__name__)
 # Define the router
 router = APIRouter()
 
 # Database connection
-# DATABASE_URL = "postgresql://postgres:@localhost:5432/cyber_dashboard"
 DATABASE_URL = "postgresql://postgres@localhost:5432/cyber_dashboard"
 engine = create_engine(DATABASE_URL)
 with engine.connect() as conn:
@@ -29,23 +32,37 @@ events = Table(
 
 metadata.create_all(engine)
 
-# Pydantic model for event data
+# Define the schema for the event payload
 class Event(BaseModel):
-    event_type: str
-    data: dict
+    event_type: str = Field(..., description="Type of the event")
+    event_time: str = Field(..., description="Timestamp of the event in ISO format")
+    data: dict = Field(..., description="Additional data related to the event")
+
+SessionLocal = sessionmaker(bind=engine)
 
 @router.post("/ingest")
 async def ingest_event(event: Event):
-    # Prepare the event data
-    event_time = datetime.now(timezone.utc)
-    query = insert(events).values(
-        event_type=event.event_type,
-        event_time=event_time,
-        data=event.data
-    )
-    with engine.connect() as conn:
-        try:
-            conn.execute(query)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {e}")
-    return {"message": "Event ingested successfully", "event_time": event_time}
+    try:
+        validated_event = event.model_dump()
+        validated_event["data"] = json.dumps(validated_event["data"])  # Serialize data to JSON string
+
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO events (event_type, event_time, data)
+                    VALUES (:event_type, :event_time, :data)
+                    """
+                ),
+                validated_event,
+            )
+        return {
+            "message": "Event ingested successfully",
+            "event_time": validated_event["event_time"]
+        }
+    except IntegrityError as e:
+        logger.error(f"Integrity error during ingestion: {e}")
+        raise HTTPException(status_code=409, detail="Duplicate event detected")
+    except Exception as e:
+        logger.error(f"Error during ingestion: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
