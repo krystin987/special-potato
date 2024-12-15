@@ -1,3 +1,5 @@
+from http.client import HTTPException
+
 from fastapi import APIRouter
 import redis.asyncio as redis
 
@@ -8,11 +10,11 @@ REDIS_PORT = 6379
 
 @router.get("/summary")
 async def get_event_summary():
-    # Connect to Redis
-    redis_client = redis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}")
-
-    # Fetch all keys
-    keys = await redis_client.keys("event:*")
+    try:
+        redis_client = redis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}")
+        keys = await redis_client.keys("event:*")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error connecting to Redis") from e
 
     # Aggregate event types
     event_summary = {}
