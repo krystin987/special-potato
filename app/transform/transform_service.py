@@ -1,3 +1,5 @@
+import os
+
 import redis.asyncio as redis
 from fastapi import APIRouter
 from sqlalchemy import create_engine, text
@@ -5,7 +7,9 @@ from datetime import datetime, timezone
 
 router = APIRouter()
 
-DATABASE_URL = "postgresql://postgres@localhost:5432/cyber_dashboard"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set. Check your .env file.")
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 

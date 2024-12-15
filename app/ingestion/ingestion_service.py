@@ -3,6 +3,7 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, 
 import json
 from pydantic import BaseModel, Field
 import logging
+import os
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -12,7 +13,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Database connection
-DATABASE_URL = "postgresql://postgres@localhost:5432/cyber_dashboard"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set. Check your .env file.")
 engine = create_engine(DATABASE_URL)
 with engine.connect() as conn:
     print("Connection successful!")
