@@ -15,9 +15,9 @@ jobs:
         ports:
           - 5432:5432
         env:
-          POSTGRES_USER: ${POSTGRES_USER}
-          POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-          POSTGRES_DB: ${POSTGRES_DB}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cyber_dashboard
 
     steps:
     - name: Checkout code
@@ -28,12 +28,17 @@ jobs:
       with:
         python-version: "3.11"
 
+    - name: Set PYTHONPATH
+      run: echo "PYTHONPATH=." >> $GITHUB_ENV
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
     - name: Run tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyber_dashboard
       run: pytest
 
     - name: Build Docker Image
